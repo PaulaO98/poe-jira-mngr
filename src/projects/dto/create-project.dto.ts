@@ -6,10 +6,12 @@ export class CreateProjectDto {
   name: string;
 
   @IsString()
-  @Matches(/^[A-Z0-9]{2,10}$/)
+  @Matches(/^[A-Z0-9-]{2,10}$/)
   key: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 }
+
+

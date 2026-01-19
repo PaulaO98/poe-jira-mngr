@@ -17,7 +17,7 @@ import { AdapterClientModule } from '../adapter-client/adapter-client.module';
       useFactory: (cfg: ConfigService): JwtModuleOptions => ({
         secret: cfg.get<string>('JWT_SECRET') || 'change_me',
         signOptions: {
-          expiresIn: (cfg.get<string>('JWT_EXPIRES_IN') || '1d') as any,
+          expiresIn: (cfg.get<string>('JWT_EXPIRES_IN') || '60s') as any,
         },
       }),
     }),

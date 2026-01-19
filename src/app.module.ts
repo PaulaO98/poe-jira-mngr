@@ -10,7 +10,17 @@ import { BoardsModule } from './boards/boards.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Load .env or .env.<NODE_ENV> (e.g. .env.production) when present.
+    // In production you can set NODE_ENV=production and provide a `.env.production` file
+    // or set real environment variables in your host/container.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV
+        ? `.env.${process.env.NODE_ENV}`
+        : '.env',
+      // keep file loading enabled so you can provide `.env.production` if desired
+      ignoreEnvFile: false,
+    }),
     AuthModule,
     AdapterClientModule,
     WorkspacesModule,

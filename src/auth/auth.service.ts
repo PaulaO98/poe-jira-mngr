@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AdapterClientService } from '../adapter-client/adapter-client.service';
 
@@ -16,7 +16,6 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, name: user.name };
     const accessToken = await this.jwt.signAsync(payload);
 
-    // Provide both camelCase and snake_case token fields for clients
     return { accessToken, access_token: accessToken, user };
   }
 
@@ -27,5 +26,23 @@ export class AuthService {
     const accessToken = await this.jwt.signAsync(payload);
 
     return { accessToken, access_token: accessToken, user };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+
+      const payload = await this.jwt.verifyAsync(refreshToken as string);
+
+      const newPayload = {
+        sub: (payload as any).sub,
+        email: (payload as any).email,
+        name: (payload as any).name,
+      };
+
+      const accessToken = await this.jwt.signAsync(newPayload);
+      return { accessToken, access_token: accessToken };
+    } catch (e) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 }
