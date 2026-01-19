@@ -1,0 +1,845 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "POE Jira MVP - Manager API",
+    "version": "1.0.0",
+    "description": "API pública (Manager) para el MVP tipo Jira: auth, workspaces, projects, board e issues."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local"
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Autenticación y perfil" },
+    { "name": "Workspaces", "description": "Gestión de workspaces" },
+    { "name": "Projects", "description": "Gestión de proyectos" },
+    { "name": "Board", "description": "Board del proyecto" },
+    { "name": "Issues", "description": "Operaciones de issues" }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registrar usuario (bootstrap workspace+project+board)",
+        "operationId": "authRegister",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterDto" },
+              "examples": {
+                "default": {
+                  "value": {
+                    "name": "Juan Perez",
+                    "email": "juan@example.com",
+                    "password": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado y token emitido. Incluye bootstrap del MVP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthRegisterResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email ya registrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login (emitir JWT)",
+        "operationId": "authLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginDto" },
+              "examples": {
+                "default": {
+                  "value": { "email": "juan@example.com", "password": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login exitoso (token emitido)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthLoginResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Perfil del usuario autenticado",
+        "operationId": "authMe",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Usuario autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "tags": ["Workspaces"],
+        "summary": "Listar workspaces del usuario",
+        "operationId": "workspacesList",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista de workspaces",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Workspace" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Workspaces"],
+        "summary": "Crear workspace",
+        "operationId": "workspacesCreate",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWorkspaceDto" },
+              "examples": { "default": { "value": { "name": "Mi Workspace" } } }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workspace creado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Workspace" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Listar projects de un workspace",
+        "operationId": "projectsListByWorkspace",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Project" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Crear project en un workspace (1 board por project)",
+        "operationId": "projectsCreateByWorkspace",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateProjectDto" },
+              "examples": { "default": { "value": { "name": "Demo Project" } } }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project creado (incluye board/columns si tu manager lo expone así)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/board": {
+      "get": {
+        "tags": ["Board"],
+        "summary": "Obtener board del project (1 board por project)",
+        "operationId": "boardGetByProject",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Board con columnas",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BoardResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project/Board no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/board/issues": {
+      "get": {
+        "tags": ["Issues"],
+        "summary": "Listar issues del board del project (agrupados por columna)",
+        "operationId": "boardIssuesListByProject",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Board + columnas con issues (para render del tablero)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BoardIssuesResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project/Board no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Issues"],
+        "summary": "Crear issue en el board del project",
+        "operationId": "boardIssuesCreateByProject",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateIssueDto" },
+              "examples": {
+                "default": {
+                  "value": {
+                    "columnId": 1,
+                    "title": "Implementar endpoint de issues",
+                    "description": "Crear endpoint y DTOs en el manager",
+                    "priority": "MEDIUM",
+                    "assigneeId": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Issue creada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Issue" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project/Board/Column no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issueId}/move": {
+      "patch": {
+        "tags": ["Issues"],
+        "summary": "Mover issue a otra columna",
+        "operationId": "issuesMove",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MoveIssueDto" },
+              "examples": {
+                "default": { "value": { "toColumnId": 3 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Issue movida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Issue" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Issue/Column no encontrado o sin acceso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Usa: Authorization: Bearer <token>"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "juan@example.com"
+          },
+          "password": { "type": "string", "minLength": 6, "example": "123456" }
+        }
+      },
+      "RegisterDto": {
+        "type": "object",
+        "required": ["name", "email", "password"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "example": "Juan Perez" },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "juan@example.com"
+          },
+          "password": { "type": "string", "minLength": 6, "example": "123456" }
+        }
+      },
+      "CreateWorkspaceDto": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Mi Workspace"
+          }
+        }
+      },
+      "CreateProjectDto": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Demo Project"
+          }
+        }
+      },
+      "CreateIssueDto": {
+        "type": "object",
+        "required": ["columnId", "title"],
+        "properties": {
+          "columnId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Implementar login"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Pantalla login + JWT flow"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH"],
+            "nullable": true,
+            "example": "MEDIUM"
+          },
+          "assigneeId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "example": 1
+          }
+        }
+      },
+      "MoveIssueDto": {
+        "type": "object",
+        "required": ["toColumnId"],
+        "properties": {
+          "toColumnId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 3
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "email", "name"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 1 },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "juan@example.com"
+          },
+          "name": { "type": "string", "example": "Juan Perez" }
+        }
+      },
+      "Workspace": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 1 },
+          "name": { "type": "string", "example": "Personal" }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": ["id", "workspaceId", "name"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 10 },
+          "workspaceId": { "type": "integer", "format": "int32", "example": 1 },
+          "name": { "type": "string", "example": "Demo" },
+          "key": { "type": "string", "nullable": true, "example": "PRJ1" },
+          "type": { "type": "string", "nullable": true, "example": "KANBAN" },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Proyecto demo"
+          }
+        }
+      },
+      "Board": {
+        "type": "object",
+        "required": ["id", "projectId", "name"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 10 },
+          "projectId": { "type": "integer", "format": "int32", "example": 10 },
+          "name": { "type": "string", "example": "Kanban Board" },
+          "type": { "type": "string", "nullable": true, "example": "KANBAN" }
+        }
+      },
+      "BoardColumn": {
+        "type": "object",
+        "required": ["id", "boardId", "name", "position"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 1 },
+          "boardId": { "type": "integer", "format": "int32", "example": 10 },
+          "name": { "type": "string", "example": "To Do" },
+          "position": { "type": "integer", "format": "int32", "example": 1 },
+          "wipLimit": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "example": null
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "required": ["id", "projectId", "columnId", "title"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 100 },
+          "projectId": { "type": "integer", "format": "int32", "example": 10 },
+          "columnId": { "type": "integer", "format": "int32", "example": 1 },
+          "issueNumber": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "example": 3
+          },
+          "title": {
+            "type": "string",
+            "example": "Crear endpoint de workspaces"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Implementar CRUD mínimo"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH"],
+            "nullable": true,
+            "example": "MEDIUM"
+          },
+          "assigneeId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "example": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-01-18T10:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-01-18T11:00:00.000Z"
+          }
+        }
+      },
+      "BoardResponse": {
+        "type": "object",
+        "required": ["board", "columns"],
+        "properties": {
+          "board": { "$ref": "#/components/schemas/Board" },
+          "columns": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BoardColumn" }
+          }
+        }
+      },
+      "BoardColumnWithIssues": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BoardColumn" },
+          {
+            "type": "object",
+            "required": ["issues"],
+            "properties": {
+              "issues": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Issue" }
+              }
+            }
+          }
+        ]
+      },
+      "BoardIssuesResponse": {
+        "type": "object",
+        "required": ["board", "columns"],
+        "properties": {
+          "board": { "$ref": "#/components/schemas/Board" },
+          "columns": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BoardColumnWithIssues" }
+          }
+        }
+      },
+      "AuthLoginResponse": {
+        "type": "object",
+        "required": ["accessToken", "user"],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "AuthRegisterResponse": {
+        "type": "object",
+        "required": ["accessToken", "user", "bootstrap"],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": { "$ref": "#/components/schemas/User" },
+          "bootstrap": {
+            "type": "object",
+            "required": ["workspaceId", "projectId", "boardId"],
+            "properties": {
+              "workspaceId": {
+                "type": "integer",
+                "format": "int32",
+                "example": 1
+              },
+              "projectId": {
+                "type": "integer",
+                "format": "int32",
+                "example": 10
+              },
+              "boardId": { "type": "integer", "format": "int32", "example": 10 }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": {
+            "oneOf": [
+              { "type": "string", "example": "Validation failed" },
+              {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["email must be an email"]
+              }
+            ]
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "example": "Bad Request"
+          }
+        }
+      }
+    }
+  }
+}

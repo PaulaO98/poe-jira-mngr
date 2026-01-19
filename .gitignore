@@ -14,7 +14,6 @@ yarn-error.log*
 lerna-debug.log*
 
 # dotenv environment variable files
-.env
 .env.development
 .env.test
 .env.production
@@ -22,3 +21,8 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+
+# coverage artifacts
+coverage/
+coverage.*
+.nyc_output/
